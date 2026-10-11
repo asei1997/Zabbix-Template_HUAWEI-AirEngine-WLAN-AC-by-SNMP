@@ -1,4 +1,4 @@
-# Zabbix-Template_HUAWEI-AirEngine-WLAN-AC-by-SNMP
+# Zabbix Template (HUAWEI AirEngine WLAN AC by SNMP)
 
 [日本語](#日本語) | [English](#english)
 
