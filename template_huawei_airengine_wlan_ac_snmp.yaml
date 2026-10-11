@@ -1,0 +1,683 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 36bff6c29af64692839d077febfc7079
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 76e128a94da34f9b9a8fab0846978388
+      template: 'HUAWEI AirEngine WLAN AC by SNMP'
+      name: 'HUAWEI AirEngine WLAN AC by SNMP'
+      description: |
+        Monitors HUAWEI AirEngine wireless LAN Access Controllers (AC) and the APs they manage via SNMP.
+        
+        - AC-wide client counts
+        - AP discovery: state, clients (total / per radio), CPU, memory, temperature, Ethernet traffic, inventory
+        - Per-radio client items are created only for radios that actually exist on each AP
+        - Item keys use radio IDs (radio0/1/2), so changing a radio's band does not break item history
+        
+        MIBs used:
+        HUAWEI-WLAN-AP-MIB
+        HUAWEI-WLAN-AP-RADIO-MIB
+        
+        Requires Zabbix 7.0 or later.
+        For base device monitoring (CPU, memory, interfaces) link "Huawei VRP by SNMP" to the same host.
+        
+        Based on "Huawei wireless Access Controller (AC)" by João Pires (www.noshut.pt), MIT License.
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: 9af79fb33b2a4762a80c1156ffa1bced
+          name: ac-users-2.4
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.2011.6.139.12.1.2.5.0
+          key: ac-users-2.4
+          history: 90d
+          tags:
+            - tag: Application
+              value: 'AC Clients'
+        - uuid: e17b44e15c6241feaf2cea6d5685d756
+          name: ac-users-5
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.2011.6.139.12.1.2.6.0
+          key: ac-users-5
+          history: 90d
+          tags:
+            - tag: Application
+              value: 'AC Clients'
+        - uuid: 1b2d53f2dda34642bfc3871c5b68f81a
+          name: ac-users-6
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.2011.6.139.12.1.2.13.0
+          key: ac-users-6
+          history: 90d
+          description: 'HUAWEI-WLAN-GLOBAL-MIB::hwWlanCurAssoc6gStaNum - total number of 6GHz users on the AC.'
+          tags:
+            - tag: Application
+              value: 'AC Clients'
+        - uuid: 6fbfb76ac7ac49c0a7f9a015f100f53c
+          name: ac-users-total
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.2011.6.139.12.1.2.3.0
+          key: ac-users-total
+          history: 90d
+          tags:
+            - tag: Application
+              value: 'AC Clients'
+      discovery_rules:
+        - uuid: 3520a90362d441a19566ee35bd9cca1a
+          name: 'AP Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.4.1.2011.6.139.13.3.3.1.4,1.3.6.1.4.1.2011.6.139.13.3.3.1.67,1.3.6.1.4.1.2011.6.139.16.1.2.1.5,1.3.6.1.4.1.2011.6.139.16.1.2.1.40]'
+          key: wlc.ap.discovery
+          delay: 1h
+          lifetime: 90d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1d
+          item_prototypes:
+            - uuid: a4df511624fe4fe9b56732cddbd37e8c
+              name: 'ap-clients-{#RADIO0_BAND}(radio0)-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.4.1.2011.6.139.16.1.2.1.40.{#SNMPINDEX}.0'
+              key: 'ap-clients-radio0-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: bec0374e33be41a186a856384a154d44
+              name: 'ap-clients-{#RADIO1_BAND}(radio1)-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.4.1.2011.6.139.16.1.2.1.40.{#SNMPINDEX}.1'
+              key: 'ap-clients-radio1-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: 1bba3d1f80ef41e09792eac20c84aab7
+              name: 'ap-clients-{#RADIO2_BAND}(radio2)-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.4.1.2011.6.139.16.1.2.1.40.{#SNMPINDEX}.2'
+              key: 'ap-clients-radio2-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: 2f74a3701ab347948d098269eb9f41f8
+              name: 'ap-clients-{#RADIO3_BAND}(radio3)-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.4.1.2011.6.139.16.1.2.1.40.{#SNMPINDEX}.3'
+              key: 'ap-clients-radio3-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: c195eff92ddc4d1eb0baea12f468e464
+              name: 'ap-clients-{#RADIO4_BAND}(radio4)-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.4.1.2011.6.139.16.1.2.1.40.{#SNMPINDEX}.4'
+              key: 'ap-clients-radio4-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: f7f27d7a129049a89a82aa9f4805f17f
+              name: 'ap-clients-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.44.{#SNMPINDEX}'
+              key: 'ap-clients-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30s
+              history: 90d
+              units: Clients
+              tags:
+                - tag: Application
+                  value: 'AP Clients'
+            - uuid: b1963ab80fb5445a84d0ec71896e3cef
+              name: 'ap-cpu-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.41.{#SNMPINDEX}'
+              key: 'ap-cpu-[{#APNAME}-{#SNMPINDEX}]'
+              history: 90d
+              units: '%'
+              description: 'CPU usage.'
+              tags:
+                - tag: Application
+                  value: 'AP Status'
+            - uuid: b455c256833b467b91497f235486f730
+              name: 'ap-eth-download[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.57.{#SNMPINDEX}'
+              key: 'ap-eth-download[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: bps
+              description: |
+                This object indicates the downstream rate of an Ethernet interface.
+                Unit: Kbps
+              preprocessing:
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000'
+              tags:
+                - tag: Application
+                  value: 'AP Traffic'
+            - uuid: d9ba696f4a6c4317820dc2210741aa0d
+              name: 'ap-eth-upload[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.56.{#SNMPINDEX}'
+              key: 'ap-eth-upload[{#APNAME}-{#SNMPINDEX}]'
+              delay: 60s
+              history: 90d
+              units: bps
+              description: |
+                This object indicates the upstream rate of an Ethernet interface.
+                Unit: Kbps
+              preprocessing:
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000'
+              tags:
+                - tag: Application
+                  value: 'AP Traffic'
+            - uuid: 8e180c2359fe4dbf8945cc8b20dc1b5f
+              name: 'ap-group-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.5.{#SNMPINDEX}'
+              key: 'ap-group-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: d2eb03fe367743579aa828ecb2a8f51d
+              name: 'ap-id-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.67.{#SNMPINDEX}'
+              key: 'ap-id-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: bec035accbc54039bccfa37ce117331c
+              name: 'ap-latitude-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.73.{#SNMPINDEX}'
+              key: 'ap-latitude-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: 0b475dfe7b724549bd3c637f5207186b
+              name: 'ap-longitude-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.72.{#SNMPINDEX}'
+              key: 'ap-longitude-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: 9fcab7992ad644d0b0dc892f22ff7844
+              name: 'ap-mac-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.39.{#SNMPINDEX}'
+              key: 'ap-MAC-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: e4b688363abf4dfc83b3b06c3073d0df
+              name: 'ap-memory-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.40.{#SNMPINDEX}'
+              key: 'ap-memory-[{#APNAME}-{#SNMPINDEX}]'
+              history: 90d
+              units: '%'
+              description: 'Memory usage.'
+              tags:
+                - tag: Application
+                  value: 'AP Status'
+            - uuid: 4ee64ab206e04f89bef5154b7cbf9870
+              name: 'ap-model-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.3.{#SNMPINDEX}'
+              key: 'ap-model-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: 2e0dbf8754574bc284e2873c023af738
+              name: 'ap-name-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.4.{#SNMPINDEX}'
+              key: 'ap-NAME-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 30m
+              history: 90d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: Application
+                  value: 'AP Information'
+            - uuid: c334f53b7d5c46b8b00e95bbbb9f6597
+              name: 'ap-state-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.6.{#SNMPINDEX}'
+              key: 'ap-state-[{#APNAME}-{#SNMPINDEX}]'
+              history: 90d
+              valuemap:
+                name: ap-state
+              tags:
+                - tag: Application
+                  value: 'AP Status'
+              trigger_prototypes:
+                - uuid: d7acfef0ccfe43bebafb68a05aa90767
+                  expression: 'last(/HUAWEI AirEngine WLAN AC by SNMP/ap-state-[{#APNAME}-{#SNMPINDEX}])={$AP_STATE_CRIT_STATUS}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/HUAWEI AirEngine WLAN AC by SNMP/ap-state-[{#APNAME}-{#SNMPINDEX}])={$AP_STATE_NORMAL_STATUS}'
+                  name: 'AP {#APNAME} State is different from the normal value: STATE={ITEM.LASTVALUE1}'
+                  priority: AVERAGE
+                  description: 'Last value: {ITEM.LASTVALUE1}.'
+                  manual_close: 'YES'
+            - uuid: 7c8a85dadd8540cd9fd741e818c2d3c6
+              name: 'ap-temp-[{#APNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.2011.6.139.13.3.3.1.43.{#SNMPINDEX}'
+              key: 'ap-temp-[{#APNAME}-{#SNMPINDEX}]'
+              delay: 3m
+              history: 90d
+              units: ℃
+              preprocessing:
+                - type: IN_RANGE
+                  parameters:
+                    - ''
+                    - '254'
+                  error_handler: DISCARD_VALUE
+              tags:
+                - tag: Application
+                  value: 'AP Status'
+              trigger_prototypes:
+                - uuid: 8dc3a09ceaff419da944a9e5dadcb1ff
+                  expression: 'last(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}])>={$AP_TEMP_MAX_CRIT_STATUS} or avg(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}],5m)>{$AP_TEMP_MAX_CRIT_STATUS}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'max(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}],5m)<{$AP_TEMP_MAX_CRIT_STATUS}'
+                  name: 'AP {#APNAME} Temperature is above critical threshold: TEMP={ITEM.LASTVALUE1}'
+                  priority: WARNING
+                  description: 'Last value: {ITEM.LASTVALUE1}.'
+                  manual_close: 'YES'
+                - uuid: 2da1eb38172245f5aa3da15c28618e51
+                  expression: 'last(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}])<={$AP_TEMP_MIN_CRIT_STATUS} or avg(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}],5m)<{$AP_TEMP_MIN_CRIT_STATUS}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'min(/HUAWEI AirEngine WLAN AC by SNMP/ap-temp-[{#APNAME}-{#SNMPINDEX}],5m)>{$AP_TEMP_MIN_CRIT_STATUS}'
+                  name: 'AP {#APNAME} Temperature is below critical threshold: TEMP={ITEM.LASTVALUE1}'
+                  priority: WARNING
+                  description: 'Last value: {ITEM.LASTVALUE1}.'
+                  manual_close: 'YES'
+          graph_prototypes:
+            - uuid: d3caeacc99f74e50ac896a0f55f483de
+              name: 'AP-Clients-[{#APNAME}]{#CLIENTS_GRAPH_R01}'
+              type: STACKED
+              ymin_type_1: FIXED
+              graph_items:
+                - color: '999999'
+                  yaxisside: RIGHT
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio0-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '2'
+                  color: 2774A4
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio1-[{#APNAME}-{#SNMPINDEX}]'
+            - uuid: 5fa215bf94d1418081d4960bb3699511
+              name: 'AP-Clients-[{#APNAME}]{#CLIENTS_GRAPH_R012}'
+              type: STACKED
+              ymin_type_1: FIXED
+              graph_items:
+                - color: '999999'
+                  yaxisside: RIGHT
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio0-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '2'
+                  color: 2774A4
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio1-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '3'
+                  color: F7941D
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio2-[{#APNAME}-{#SNMPINDEX}]'
+            - uuid: ddf3547bda154cbe9a4d80a0d5e9c115
+              name: 'AP-Clients-[{#APNAME}]{#CLIENTS_GRAPH_R0123}'
+              type: STACKED
+              ymin_type_1: FIXED
+              graph_items:
+                - color: '999999'
+                  yaxisside: RIGHT
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio0-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '2'
+                  color: 2774A4
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio1-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '3'
+                  color: F7941D
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio2-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '4'
+                  color: 6C59DC
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio3-[{#APNAME}-{#SNMPINDEX}]'
+            - uuid: af0deabf05004473b7d53e63c643665d
+              name: 'AP-Clients-[{#APNAME}]{#CLIENTS_GRAPH_R01234}'
+              type: STACKED
+              ymin_type_1: FIXED
+              graph_items:
+                - color: '999999'
+                  yaxisside: RIGHT
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio0-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '2'
+                  color: 2774A4
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio1-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '3'
+                  color: F7941D
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio2-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '4'
+                  color: 6C59DC
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio3-[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '5'
+                  color: 199C0D
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-clients-radio4-[{#APNAME}-{#SNMPINDEX}]'
+            - uuid: 9f5829e64f8b432fb49ffb4067e3c727
+              name: 'AP-Temperature-[{#APNAME}]'
+              graph_items:
+                - drawtype: GRADIENT_LINE
+                  color: 0000DD
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-temp-[{#APNAME}-{#SNMPINDEX}]'
+            - uuid: 6398e59b665c4c6498c8101769f65ba4
+              name: 'AP-Traffic-[{#APNAME}]'
+              graph_items:
+                - drawtype: GRADIENT_LINE
+                  color: 1A7C11
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-eth-download[{#APNAME}-{#SNMPINDEX}]'
+                - sortorder: '1'
+                  drawtype: GRADIENT_LINE
+                  color: F63100
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ap-eth-upload[{#APNAME}-{#SNMPINDEX}]'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // walk[] の結果から AP 一覧を作り、各 AP に存在する radio を {#RADIOn}=1/0、その周波数帯を {#RADIOn_BAND} で付与する
+                  // Build the AP list from the walk[] result and set {#RADIOn}=1/0 for each radio present on the AP and {#RADIOn_BAND} for its band
+                  var AP_NAME = '1.3.6.1.4.1.2011.6.139.13.3.3.1.4.';
+                  var AP_ID = '1.3.6.1.4.1.2011.6.139.13.3.3.1.67.';
+                  var RADIO_FREQ = '1.3.6.1.4.1.2011.6.139.16.1.2.1.5.';
+                  var RADIO_STA = '1.3.6.1.4.1.2011.6.139.16.1.2.1.40.';
+                  // hwWlanRadioFreqType: frequency2G(1), frequency5G(2), frequency6G(3)
+                  var BANDS = {'1': '2.4GHz', '2': '5GHz', '3': '6GHz'};
+
+                  function parseValue(v) {
+                      var m = v.match(/^Hex-STRING: (.*)$/);
+                      if (m) {
+                          try {
+                              return decodeURIComponent(m[1].trim().replace(/\s+/g, '%').replace(/^/, '%'));
+                          } catch (e) {
+                              return m[1].trim();
+                          }
+                      }
+                      v = v.replace(/^[^:]+: ?/, '');
+                      m = v.match(/^"([\s\S]*)"$/);
+                      return m ? m[1].replace(/\\(["\\])/g, '$1') : v;
+                  }
+
+                  var aps = {}, order = [], radios = {}, bands = {};
+
+                  function ap(idx) {
+                      if (!aps[idx]) {
+                          aps[idx] = {'{#SNMPINDEX}': idx, '{#APID}': '', '{#APNAME}': ''};
+                          order.push(idx);
+                      }
+                      return aps[idx];
+                  }
+
+                  value.split(/\r?\n/).forEach(function (line) {
+                      var m = line.match(/^\.?([\d.]+) = ([\s\S]*)$/);
+                      if (!m) {
+                          return;
+                      }
+                      var oid = m[1], val = m[2];
+                      if (oid.indexOf(AP_NAME) === 0) {
+                          ap(oid.substr(AP_NAME.length))['{#APNAME}'] = parseValue(val);
+                      }
+                      else if (oid.indexOf(AP_ID) === 0) {
+                          ap(oid.substr(AP_ID.length))['{#APID}'] = parseValue(val);
+                      }
+                      else if (oid.indexOf(RADIO_STA) === 0) {
+                          // index = <APインデックス(MAC等で複数階層)>.<radio ID> なので末尾だけが radio ID
+                          // index = <AP index (multi-part, e.g. MAC)>.<radio ID>, so only the last part is the radio ID
+                          radios[oid.substr(RADIO_STA.length)] = true;
+                      }
+                      else if (oid.indexOf(RADIO_FREQ) === 0) {
+                          // 値は "INTEGER: 2" または MIB 読み込み時 "INTEGER: frequency5G(2)" の形式
+                          // The value is "INTEGER: 2", or "INTEGER: frequency5G(2)" when the MIB is loaded
+                          var n = val.match(/(\d+)\)?\s*$/);
+                          if (n) {
+                              bands[oid.substr(RADIO_FREQ.length)] = BANDS[n[1]] || 'unknown';
+                          }
+                      }
+                  });
+
+                  return JSON.stringify(order.map(function (idx) {
+                      var row = aps[idx], set = '';
+                      for (var r = 0; r <= 4; r++) {
+                          var key = idx + '.' + r;
+                          row['{#RADIO' + r + '}'] = radios[key] ? '1' : '0';
+                          row['{#RADIO' + r + '_BAND}'] = bands[key] || 'unknown';
+                          if (radios[key]) {
+                              set += r;
+                          }
+                      }
+                      // 存在する radio ID を連結した文字列(例: "01", "012")。グラフの出し分けに使う
+                      // Concatenated IDs of the radios present (e.g. "01", "012"), used to select the graph
+                      row['{#RADIO_SET}'] = set;
+                      // グラフ名の末尾に付けるマクロ。AP の radio 構成に合うものは空文字(名前は "AP-Clients-[AP名]")、
+                      // 合わないものは "#NOGRAPH" を付け、オーバーライドで作成しない
+                      // Suffix macros for graph names: empty for the variant matching the AP's radio set
+                      // (name becomes "AP-Clients-[AP name]"), "#NOGRAPH" for the others so an override drops them
+                      ['01', '012', '0123', '01234'].forEach(function (g) {
+                          row['{#CLIENTS_GRAPH_R' + g + '}'] = (g === set) ? '' : ' #NOGRAPH';
+                      });
+                      return row;
+                  }));
+          overrides:
+            - name: 'radio0 not present'
+              step: '1'
+              filter:
+                conditions:
+                  - macro: '{#RADIO0}'
+                    value: ^1$
+                    operator: NOT_MATCHES_REGEX
+                    formulaid: A
+              operations:
+                - operationobject: ITEM_PROTOTYPE
+                  operator: REGEXP
+                  value: '^ap-clients-[^(]*\(radio0\)-\['
+                  discover: NO_DISCOVER
+            - name: 'radio1 not present'
+              step: '2'
+              filter:
+                conditions:
+                  - macro: '{#RADIO1}'
+                    value: ^1$
+                    operator: NOT_MATCHES_REGEX
+                    formulaid: A
+              operations:
+                - operationobject: ITEM_PROTOTYPE
+                  operator: REGEXP
+                  value: '^ap-clients-[^(]*\(radio1\)-\['
+                  discover: NO_DISCOVER
+            - name: 'radio2 not present'
+              step: '3'
+              filter:
+                conditions:
+                  - macro: '{#RADIO2}'
+                    value: ^1$
+                    operator: NOT_MATCHES_REGEX
+                    formulaid: A
+              operations:
+                - operationobject: ITEM_PROTOTYPE
+                  operator: REGEXP
+                  value: '^ap-clients-[^(]*\(radio2\)-\['
+                  discover: NO_DISCOVER
+            - name: 'radio3 not present'
+              step: '4'
+              filter:
+                conditions:
+                  - macro: '{#RADIO3}'
+                    value: ^1$
+                    operator: NOT_MATCHES_REGEX
+                    formulaid: A
+              operations:
+                - operationobject: ITEM_PROTOTYPE
+                  operator: REGEXP
+                  value: '^ap-clients-[^(]*\(radio3\)-\['
+                  discover: NO_DISCOVER
+            - name: 'radio4 not present'
+              step: '5'
+              filter:
+                conditions:
+                  - macro: '{#RADIO4}'
+                    value: ^1$
+                    operator: NOT_MATCHES_REGEX
+                    formulaid: A
+              operations:
+                - operationobject: ITEM_PROTOTYPE
+                  operator: REGEXP
+                  value: '^ap-clients-[^(]*\(radio4\)-\['
+                  discover: NO_DISCOVER
+            - name: 'graph: radio set mismatch'
+              step: '6'
+              operations:
+                - operationobject: GRAPH_PROTOTYPE
+                  operator: LIKE
+                  value: '#NOGRAPH'
+                  discover: NO_DISCOVER
+      macros:
+        - macro: '{$AP_STATE_CRIT_STATUS}'
+          value: '4'
+        - macro: '{$AP_STATE_NORMAL_STATUS}'
+          value: '8'
+        - macro: '{$AP_TEMP_MAX_CRIT_STATUS}'
+          value: '65'
+        - macro: '{$AP_TEMP_MIN_CRIT_STATUS}'
+          value: '-15'
+      valuemaps:
+        - uuid: 8f85fe6e082442e8917f84bbc8885993
+          name: ap-state
+          mappings:
+            - value: '1'
+              newvalue: idle
+            - value: '2'
+              newvalue: committing
+            - value: '3'
+              newvalue: commit-failed
+            - value: '4'
+              newvalue: fault(offline)
+            - value: '5'
+              newvalue: config-failed
+            - value: '6'
+              newvalue: ver-mismatch
+            - value: '7'
+              newvalue: downloading
+            - value: '8'
+              newvalue: normal
+            - value: '9'
+              newvalue: standby
+  graphs:
+    - uuid: aa641cb2927845f4984b6f45995aed3e
+      name: AC-Clients
+      graph_items:
+        - drawtype: GRADIENT_LINE
+          color: 1A7C11
+          item:
+            host: 'HUAWEI AirEngine WLAN AC by SNMP'
+            key: ac-users-total
+        - sortorder: '1'
+          color: F63100
+          item:
+            host: 'HUAWEI AirEngine WLAN AC by SNMP'
+            key: ac-users-2.4
+        - sortorder: '2'
+          color: 2774A4
+          item:
+            host: 'HUAWEI AirEngine WLAN AC by SNMP'
+            key: ac-users-5
+        - sortorder: '3'
+          color: F7941D
+          item:
+            host: 'HUAWEI AirEngine WLAN AC by SNMP'
+            key: ac-users-6
