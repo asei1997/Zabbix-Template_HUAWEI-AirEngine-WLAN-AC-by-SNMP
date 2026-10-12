@@ -63,6 +63,90 @@ zabbix_export:
           tags:
             - tag: Application
               value: 'AC Clients'
+        - uuid: 5570115022f3416d8838ba29a2d05a6d
+          name: 'SSID clients: raw data'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.4.1.2011.6.139.17.1.2.1.2,1.3.6.1.4.1.2011.6.139.17.1.2.1.3,1.3.6.1.4.1.2011.6.139.17.1.2.1.4,1.3.6.1.4.1.2011.6.139.17.1.2.1.17]'
+          key: wlc.ssid.clients.raw
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          description: |
+            HUAWEI-WLAN-VAP-MIB::hwWlanSsidStatisticTable
+            Per SSID: sum of hwWlanSsid2gStaCnt, hwWlanSsid5gStaCnt and hwWlanSsid6gStaCnt, and hwWlanSsidApCnt,
+            as JSON {"<SSID index>": {"clients": n, "aps": n}}.
+            Master item for the "ssid-clients" and "ssid-aps" item prototypes.
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // SSID ごとに 2.4GHz / 5GHz / 6GHz の端末数を合計し、AP 数とあわせて
+                  // {"<SSID インデックス>": {"clients": 端末数, "aps": AP 数}} の JSON にする
+                  // Per SSID, sum the 2.4GHz / 5GHz / 6GHz client counts and add the AP count, as JSON
+                  // {"<SSID index>": {"clients": clients, "aps": APs}}
+                  // 6GHz 列(.17)がないファームウェアでも、ある列だけを合計する
+                  // On firmware without the 6GHz column (.17), only the available columns are summed
+                  var BASE = '1.3.6.1.4.1.2011.6.139.17.1.2.1.';
+                  var FIELDS = {'2': 'clients', '3': 'clients', '17': 'clients', '4': 'aps'};
+                  var out = {};
+
+                  value.split(/\r?\n/).forEach(function (line) {
+                      var m = line.match(/^\.?([\d.]+) = [^:]*: ?(\d+)/);
+                      if (!m || m[1].indexOf(BASE) !== 0) {
+                          return;
+                      }
+                      // <列番号>.<SSID インデックス> / <column>.<SSID index>
+                      var rest = m[1].substr(BASE.length);
+                      var dot = rest.indexOf('.');
+                      var field = FIELDS[rest.substr(0, dot)];
+                      if (!field) {
+                          return;
+                      }
+                      var idx = rest.substr(dot + 1);
+                      if (!out[idx]) {
+                          out[idx] = {'clients': 0, 'aps': 0};
+                      }
+                      out[idx][field] += parseInt(m[2], 10);
+                  });
+
+                  return JSON.stringify(out);
+          tags:
+            - tag: Application
+              value: 'SSID Clients'
+        - uuid: 1d2a332b38cc4b1982362f73a2d910b4
+          name: 'AP SSID clients: raw data'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.4.1.2011.6.139.17.1.1.1.9]'
+          key: wlc.vap.clients.raw
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          description: |
+            HUAWEI-WLAN-VAP-MIB::hwWlanVapStaOnlineCnt per VAP, as JSON {"<VAP index>": clients}.
+            VAP index = <AP MAC>.<radio ID>.<WLAN ID>.
+            Master item for the "ap-ssid-clients" item prototypes.
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // VAP ごとの端末数を {"<VAP インデックス>": 端末数} の JSON にする
+                  // Convert the client count per VAP into JSON {"<VAP index>": clients}
+                  // VAP インデックス = <AP の MAC>.<radio ID>.<WLAN ID>
+                  // VAP index = <AP MAC>.<radio ID>.<WLAN ID>
+                  var COL = '1.3.6.1.4.1.2011.6.139.17.1.1.1.9.';
+                  var out = {};
+
+                  value.split(/\r?\n/).forEach(function (line) {
+                      var m = line.match(/^\.?([\d.]+) = [^:]*: ?(\d+)/);
+                      if (m && m[1].indexOf(COL) === 0) {
+                          out[m[1].substr(COL.length)] = parseInt(m[2], 10);
+                      }
+                  });
+
+                  return JSON.stringify(out);
+          tags:
+            - tag: Application
+              value: 'AP SSID Clients'
       discovery_rules:
         - uuid: 3520a90362d441a19566ee35bd9cca1a
           name: 'AP Discovery'
@@ -621,11 +705,250 @@ zabbix_export:
                   discover: NO_DISCOVER
             - name: 'graph: radio set mismatch'
               step: '6'
+              filter:
+                conditions:
+                  - macro: '{#SNMPINDEX}'
+                    value: '.*'
+                    formulaid: A
               operations:
                 - operationobject: GRAPH_PROTOTYPE
                   operator: LIKE
                   value: '#NOGRAPH'
                   discover: NO_DISCOVER
+        - uuid: e8f1f779207d4774b84b7b4d5d06bad7
+          name: 'SSID Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.4.1.2011.6.139.17.1.2.1.2]'
+          key: wlc.ssid.discovery
+          delay: 1h
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#SSID}'
+                value: '{$SSID.MATCHES}'
+                formulaid: A
+              - macro: '{#SSID}'
+                value: '{$SSID.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: B
+          lifetime: 90d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1d
+          description: 'Discovers SSIDs from HUAWEI-WLAN-VAP-MIB::hwWlanSsidStatisticTable. Use {$SSID.MATCHES} / {$SSID.NOT_MATCHES} to select SSIDs.'
+          item_prototypes:
+            - uuid: 6cdf3952ef7a48fd9972d61edec5ea1c
+              name: 'SSID-Clients-[{#SSID}]'
+              type: DEPENDENT
+              key: 'ssid-clients-[{#SSIDINDEX}]'
+              delay: '0'
+              history: 90d
+              units: Clients
+              description: 'Number of clients connected to SSID "{#SSID}" on the whole AC (2.4GHz + 5GHz + 6GHz).'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$["{#SSIDINDEX}"].clients'
+              master_item:
+                key: wlc.ssid.clients.raw
+              tags:
+                - tag: Application
+                  value: 'SSID Clients'
+            - uuid: f36bbb9b968c4858b90678c607db0d0e
+              name: 'SSID-APs-[{#SSID}]'
+              type: DEPENDENT
+              key: 'ssid-aps-[{#SSIDINDEX}]'
+              delay: '0'
+              history: 90d
+              units: APs
+              description: 'Number of APs providing SSID "{#SSID}" (HUAWEI-WLAN-VAP-MIB::hwWlanSsidApCnt).'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$["{#SSIDINDEX}"].aps'
+              master_item:
+                key: wlc.ssid.clients.raw
+              tags:
+                - tag: Application
+                  value: 'SSID Clients'
+          graph_prototypes:
+            - uuid: 8894334c0ed54b2ebc18b8fc870ff582
+              name: 'SSID-Clients-[{#SSID}]'
+              ymin_type_1: FIXED
+              graph_items:
+                - drawtype: GRADIENT_LINE
+                  color: 1A7C11
+                  item:
+                    host: 'HUAWEI AirEngine WLAN AC by SNMP'
+                    key: 'ssid-clients-[{#SSIDINDEX}]'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // インデックス(<長さ>.<SSID の各バイト>)から SSID 名を復元する
+                  // Decode the SSID name from the index (<length>.<SSID bytes>)
+                  var COL = '1.3.6.1.4.1.2011.6.139.17.1.2.1.2.';
+                  var rows = [];
+
+                  function decode(bytes) {
+                      try {
+                          return decodeURIComponent(bytes.map(function (b) {
+                              return '%' + ('0' + b.toString(16)).slice(-2);
+                          }).join(''));
+                      } catch (e) {
+                          return String.fromCharCode.apply(null, bytes);
+                      }
+                  }
+
+                  value.split(/\r?\n/).forEach(function (line) {
+                      var m = line.match(/^\.?([\d.]+) = /);
+                      if (!m || m[1].indexOf(COL) !== 0) {
+                          return;
+                      }
+                      var idx = m[1].substr(COL.length);
+                      var parts = idx.split('.').map(Number);
+                      // 先頭が長さでない場合(IMPLIED 形式)は、すべてを SSID のバイトとして扱う
+                      // If the first sub-identifier is not the length (IMPLIED index), treat all as SSID bytes
+                      var bytes = (parts[0] === parts.length - 1) ? parts.slice(1) : parts;
+                      rows.push({'{#SSIDINDEX}': idx, '{#SSID}': decode(bytes)});
+                  });
+
+                  return JSON.stringify(rows);
+        - uuid: 917f66ac4ef34aa0877603876b8e8139
+          name: 'AP SSID Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.4.1.2011.6.139.17.1.1.1.6,1.3.6.1.4.1.2011.6.139.13.3.3.1.4]'
+          key: wlc.ap.ssid.discovery
+          delay: 1h
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#SSID}'
+                value: '{$SSID.MATCHES}'
+                formulaid: A
+              - macro: '{#SSID}'
+                value: '{$SSID.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: B
+          lifetime: 90d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1d
+          description: |
+            Discovers AP name x SSID combinations from HUAWEI-WLAN-VAP-MIB::hwWlanVapSSID and HUAWEI-WLAN-AP-MIB::hwWlanApName
+            (matched by the AP MAC address at the start of the VAP index).
+            {#VAPKEYS} lists the VAPs (one per radio) of each combination; the item sums their client counts.
+            Use {$SSID.MATCHES} / {$SSID.NOT_MATCHES} to select SSIDs.
+          item_prototypes:
+            - uuid: c2131dfbdf224252a82678bf1764fb81
+              name: 'AP-SSID-Clients-[{#APNAME}]-[{#SSID}]'
+              type: DEPENDENT
+              key: 'ap-ssid-clients-[{#APNAME}-{#SSIDINDEX}]'
+              delay: '0'
+              history: 90d
+              units: Clients
+              description: 'Number of clients connected to SSID "{#SSID}" on AP {#APNAME} (sum of all radios).'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // この AP x SSID に属する VAP の端末数を合計する
+                      // Sum the client counts of the VAPs belonging to this AP x SSID
+                      var data = JSON.parse(value), keys = [{#VAPKEYS}], sum = 0, found = false;
+                      for (var i = 0; i < keys.length; i++) {
+                          if (data.hasOwnProperty(keys[i])) {
+                              sum += data[keys[i]];
+                              found = true;
+                          }
+                      }
+                      // VAP が 1 つも見つからない場合(AP オフラインなど)はエラーにする
+                      // Fail when none of the VAPs is present (e.g. the AP is offline)
+                      if (!found) {
+                          throw 'No VAP found for this AP and SSID';
+                      }
+                      return sum;
+              master_item:
+                key: wlc.vap.clients.raw
+              tags:
+                - tag: Application
+                  value: 'AP SSID Clients'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // VAP テーブルの SSID と AP テーブルの AP 名から「AP 名 x SSID」の組み合わせを作り、属する VAP のインデックス一覧を付ける
+                  // Build "AP name x SSID" combinations from the VAP SSIDs and the AP table names, with the list of their VAP indexes
+                  var SSID_COL = '1.3.6.1.4.1.2011.6.139.17.1.1.1.6.';
+                  var APNAME_COL = '1.3.6.1.4.1.2011.6.139.13.3.3.1.4.';
+
+                  function parseValue(v) {
+                      var m = v.match(/^Hex-STRING: (.*)$/);
+                      if (m) {
+                          try {
+                              return decodeURIComponent(m[1].trim().replace(/\s+/g, '%').replace(/^/, '%'));
+                          } catch (e) {
+                              return m[1].trim();
+                          }
+                      }
+                      v = v.replace(/^[^:]+: ?/, '');
+                      m = v.match(/^"([\s\S]*)"$/);
+                      return m ? m[1].replace(/\\(["\\])/g, '$1') : v;
+                  }
+
+                  // SSID を AC 全体の SSID テーブルと同じインデックス形式(<長さ>.<UTF-8 の各バイト>)にする
+                  // Encode the SSID in the same index format as the AC-wide SSID table (<length>.<UTF-8 bytes>)
+                  function ssidIndex(s) {
+                      var bin = unescape(encodeURIComponent(s)), bytes = [];
+                      for (var i = 0; i < bin.length; i++) {
+                          bytes.push(bin.charCodeAt(i));
+                      }
+                      return [bytes.length].concat(bytes).join('.');
+                  }
+
+                  var ssids = {}, apnames = {};
+
+                  value.split(/\r?\n/).forEach(function (line) {
+                      var m = line.match(/^\.?([\d.]+) = ([\s\S]*)$/);
+                      if (!m) {
+                          return;
+                      }
+                      if (m[1].indexOf(SSID_COL) === 0) {
+                          ssids[m[1].substr(SSID_COL.length)] = parseValue(m[2]);
+                      }
+                      else if (m[1].indexOf(APNAME_COL) === 0) {
+                          apnames[m[1].substr(APNAME_COL.length)] = parseValue(m[2]);
+                      }
+                  });
+
+                  // AP 名 x SSID ごとに VAP をまとめる(radio が違っても同じ組み合わせ)
+                  // Group VAPs per AP name x SSID (VAPs on different radios share a combination)
+                  var groups = {}, order = [];
+                  Object.keys(ssids).forEach(function (vap) {
+                      // VAP インデックス = <AP の MAC>.<radio ID>.<WLAN ID>。先頭(MAC)が AP テーブルのインデックス
+                      // VAP index = <AP MAC>.<radio ID>.<WLAN ID>; the MAC part is the AP table index
+                      var mac = vap.split('.').slice(0, -2).join('.');
+                      var apname = apnames[mac], ssid = ssids[vap];
+                      if (!apname || !ssid) {
+                          return;
+                      }
+                      var key = apname + '\u0000' + ssid;
+                      if (!groups[key]) {
+                          groups[key] = {apname: apname, ssid: ssid, vaps: []};
+                          order.push(key);
+                      }
+                      groups[key].vaps.push(vap);
+                  });
+
+                  return JSON.stringify(order.map(function (key) {
+                      var g = groups[key];
+                      return {
+                          '{#APNAME}': g.apname,
+                          '{#SSID}': g.ssid,
+                          '{#SSIDINDEX}': ssidIndex(g.ssid),
+                          // アイテムの JavaScript で配列として使う 'idx1','idx2' 形式 / 'idx1','idx2' list used as an array in the item JavaScript
+                          '{#VAPKEYS}': g.vaps.map(function (v) {
+                              return "'" + v + "'";
+                          }).join(',')
+                      };
+                  }));
       macros:
         - macro: '{$AP_STATE_CRIT_STATUS}'
           value: '4'
@@ -635,6 +958,12 @@ zabbix_export:
           value: '65'
         - macro: '{$AP_TEMP_MIN_CRIT_STATUS}'
           value: '-15'
+        - macro: '{$SSID.MATCHES}'
+          value: '.*'
+          description: 'Regular expression of SSIDs to discover.'
+        - macro: '{$SSID.NOT_MATCHES}'
+          value: CHANGE_IF_NEEDED
+          description: 'Regular expression of SSIDs to exclude.'
       valuemaps:
         - uuid: 8f85fe6e082442e8917f84bbc8885993
           name: ap-state

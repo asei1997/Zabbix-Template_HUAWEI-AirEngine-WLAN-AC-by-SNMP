@@ -58,6 +58,29 @@ AC 全体の接続端末数に加え、AC が管理している AP を自動検�
 radio の構成(`01` / `012` / `0123` / `01234`)ごとにグラフのプロトタイプを用意し、オーバーライドで AP に合うものを 1 つだけ作成します。展開後の名前はどれも `AP-Clients-[AP名]` です。
 radio が 1 つも検出されない AP(オフラインなど)や、上記以外の構成の AP ではグラフは新規作成されません(既存のグラフは残ります)。
 
+#### SSID ごと(SSID Discovery)
+
+| アイテム | 内容 |
+|---|---|
+| `SSID-Clients-[SSID]` | AC 全体でその SSID に接続している端末数(2.4GHz + 5GHz + 6GHz の合計) |
+| `SSID-APs-[SSID]` | その SSID を提供している AP 数 |
+
+グラフ: `SSID-Clients-[SSID]`
+
+`HUAWEI-WLAN-VAP-MIB::hwWlanSsidStatisticTable` を使用します。SNMP の取得はマスターアイテム `wlc.ssid.clients.raw`(1 分ごと、`walk[]` 1 回)だけで、各 SSID のアイテムはその結果から値を取り出す依存アイテムです。
+対象の SSID はマクロ `{$SSID.MATCHES}` / `{$SSID.NOT_MATCHES}` で絞り込めます。
+
+#### AP x SSID ごと(AP SSID Discovery)
+
+| アイテム | 内容 |
+|---|---|
+| `AP-SSID-Clients-[AP名]-[SSID]` | その AP でその SSID に接続している端末数(全 radio の合計) |
+
+`HUAWEI-WLAN-VAP-MIB::hwWlanVapInfoTable` を使用します。
+1 時間ごとのディスカバリーで、VAP テーブルの SSID 名(`hwWlanVapSSID`)と、AP テーブルの AP 名(`hwWlanApName`、VAP インデックス先頭の MAC アドレスで対応付け)から「AP 名 x SSID」の組み合わせと、それに属する VAP(radio ごと)を求めます。1 分ごとのマスターアイテム `wlc.vap.clients.raw` は端末数(`hwWlanVapStaOnlineCnt`)の列だけを取得し、各アイテムは自分の VAP の値を合計する依存アイテムです。
+アイテムのキーは AP 名基準のため、AP を交換して MAC アドレスが変わっても同じ AP 名なら履歴が続きます(新しい VAP の反映は次回のディスカバリーまで最大 1 時間かかります)。
+対象の SSID は AC 全体と同じ `{$SSID.MATCHES}` / `{$SSID.NOT_MATCHES}` で絞り込みます。
+
 ### 無線インターフェースの自動判定
 
 AP によって搭載している無線インターフェースの数や周波数帯が異なるため、AP Discovery では AP テーブルと radio テーブル(`hwWlanRadioInfoTable` の周波数帯 `hwWlanRadioFreqType` と接続端末数 `hwWlanRadioOnlineStaCnt`)をまとめて `walk[]` で取得し、JavaScript 前処理で AP ごとに次の LLD マクロを生成しています。
@@ -93,6 +116,8 @@ radio ごとのアイテムのキーは周波数帯ではなく radio ID(`ap-cli
 | `{$AP_STATE_NORMAL_STATUS}` | `8` | AP 状態の正常値(normal) |
 | `{$AP_TEMP_MAX_CRIT_STATUS}` | `65` | AP 温度の上限(℃) |
 | `{$AP_TEMP_MIN_CRIT_STATUS}` | `-15` | AP 温度の下限(℃) |
+| `{$SSID.MATCHES}` | `.*` | 検出する SSID の正規表現 |
+| `{$SSID.NOT_MATCHES}` | `CHANGE_IF_NEEDED` | 除外する SSID の正規表現 |
 
 SNMP コミュニティはホストの SNMP インターフェース設定(`{$SNMP_COMMUNITY}` などのホスト/グローバルマクロ)で指定してください。
 
@@ -188,6 +213,29 @@ Graphs: `AP-Clients` / `AP-Temperature` / `AP-Traffic`
 A graph prototype is provided for each radio set (`01` / `012` / `0123` / `01234`) and an LLD override creates only the one matching the AP. All of them expand to the same name `AP-Clients-[AP name]`.
 No new graph is created for APs with no radios discovered (e.g. offline) or with any other radio set (an existing graph is kept).
 
+#### Per SSID (SSID Discovery)
+
+| Item | Description |
+|---|---|
+| `SSID-Clients-[SSID]` | Number of clients connected to the SSID on the whole AC (2.4GHz + 5GHz + 6GHz) |
+| `SSID-APs-[SSID]` | Number of APs providing the SSID |
+
+Graph: `SSID-Clients-[SSID]`
+
+Uses `HUAWEI-WLAN-VAP-MIB::hwWlanSsidStatisticTable`. Only the master item `wlc.ssid.clients.raw` polls SNMP (one `walk[]` per minute); the per-SSID items are dependent items that extract their value from it.
+SSIDs can be selected with the `{$SSID.MATCHES}` / `{$SSID.NOT_MATCHES}` macros.
+
+#### Per AP x SSID (AP SSID Discovery)
+
+| Item | Description |
+|---|---|
+| `AP-SSID-Clients-[AP name]-[SSID]` | Number of clients connected to the SSID on the AP (sum of all radios) |
+
+Uses `HUAWEI-WLAN-VAP-MIB::hwWlanVapInfoTable`.
+The hourly discovery uses the VAP SSID column (`hwWlanVapSSID`) and the AP table name column (`hwWlanApName`, matched by the AP MAC address at the start of the VAP index) to find each "AP name x SSID" combination and its VAPs (one per radio). The master item `wlc.vap.clients.raw` polls only the client count column (`hwWlanVapStaOnlineCnt`) every minute, and each item is a dependent item that sums the values of its VAPs.
+Item keys are based on the AP name, so history continues when an AP is replaced (different MAC address) under the same name; the new VAPs are picked up at the next discovery (up to 1 hour).
+SSIDs are selected with the same `{$SSID.MATCHES}` / `{$SSID.NOT_MATCHES}` macros as the AC-wide SSID items.
+
 ### Automatic radio detection
 
 Since the number of radios and their bands differ between AP models, AP Discovery retrieves the AP table and the radio table (`hwWlanRadioFreqType` and `hwWlanRadioOnlineStaCnt` of `hwWlanRadioInfoTable`) together with `walk[]`, and a JavaScript preprocessing step generates the following LLD macros for each AP.
@@ -223,6 +271,8 @@ Offline APs do not appear in the radio table, so if an AP stays offline for more
 | `{$AP_STATE_NORMAL_STATUS}` | `8` | Normal AP state (normal) |
 | `{$AP_TEMP_MAX_CRIT_STATUS}` | `65` | Upper AP temperature threshold (°C) |
 | `{$AP_TEMP_MIN_CRIT_STATUS}` | `-15` | Lower AP temperature threshold (°C) |
+| `{$SSID.MATCHES}` | `.*` | Regular expression of SSIDs to discover |
+| `{$SSID.NOT_MATCHES}` | `CHANGE_IF_NEEDED` | Regular expression of SSIDs to exclude |
 
 Set the SNMP community in the host's SNMP interface (e.g. via a host or global `{$SNMP_COMMUNITY}` macro).
 
